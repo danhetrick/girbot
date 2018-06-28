@@ -3,16 +3,15 @@
 # girbot.pl
 # Gir IRC Bot
 #
-# Author: Wraithnix (wraithnix@riotmod.com)
+# Author: Dan Hetrick (dhetrick@gmail.com)
 # Version: 0.1
-# Web: http://www.riotmod.com
+# Web: https://github.com/danhetrick/girbot
 #
 # This script is released under the GNU General Public License.
 # More information on the GPL can be found at http://www.gnu.org/copyleft/gpl.html
 #
-# Usage: perl girbot.pl <config file, optional>
+# Usage: perl girbot.pl
 #
-# Description:
 # GirBot is an IRC bot written to Perl to be a "skeleton" for other Perl IRC bots.  That
 # is to say, all of the hard work (connection, configuration, etc.) is already done, but not
 # much else.  Unchanged, all GirBot does is connect to an IRC server and print any data it
@@ -37,11 +36,11 @@ use Net::IRC;
 # | GLOBALS BEGIN |
 # =================
 
-my $cfg_nick;
-my $cfg_altnick;
-my $cfg_ident;
-my $cfg_port;
-my $cfg_server;
+my $NICK;
+my $ALTNICK;
+my $IDENT;
+my $PORT;
+my $SERVER;
 
 # ===============
 # | GLOBALS END |
@@ -56,11 +55,11 @@ load_config_file("gir.cfg");
 
 my $irc = new Net::IRC;
 print "Creating connection to IRC server...";
-my $conn = $irc->newconn(Server   => "$cfg_server",
-             Port     => $cfg_port,
-             Nick     => "$cfg_nick",
-             Ircname  => "$cfg_ident",
-             Username => "$cfg_ident")
+my $conn = $irc->newconn(Server   => "$SERVER",
+             Port     => $PORT,
+             Nick     => "$NICK",
+             Ircname  => "$IDENT",
+             Username => "$IDENT")
     or die "Can't connect to IRC server.";
 print "done!\n";
 
@@ -84,7 +83,6 @@ $irc->start;
 # =============================
 
 # load_config_file()
-# GetSetting()
 # on_connect()
 # on_init()
 # on_public()
@@ -92,49 +90,47 @@ $irc->start;
 # on_nick_taken()
 
 # load_config_file()
-# Arguments: filename
+# Arguments: configuration file
 # Returns: Nothing
-# Description: Loads configuration data from a file.
+# Description: Use this sub to load values from a configuration file.
+#              Settings are stored in this format: <setting>=<value>
 sub load_config_file {
-	my $configuration_file = shift;
+	my ($config_file)=@_;
 
-	$cfg_nick=GetSetting("nick",$configuration_file);
-	$cfg_altnick=GetSetting("altnick",$configuration_file);
-	$cfg_ident=GetSetting("ident",$configuration_file);
-	$cfg_port=GetSetting("port",$configuration_file);
-	$cfg_server=GetSetting("server",$configuration_file);
+	open(CFGFILE,"<$config_file")
+	or die "Can't open configuration file ($config_file)";
+	my @slist=<CFGFILE>;
+	foreach my $selem (@slist) {
+
+		# Lines beginning with "#" are comments, and ignored.
+		if (index($selem,"#")==0) { next; }
+
+		# Settings are in the format <setting>=<value>
+		my @ln=split("=",$selem);
+		if ($ln[0] =~ /server/i) {
+		    chomp $ln[1];
+		    $SERVER = $ln[1];
+		} elsif ($ln[0] =~ /port/i) {
+		    chomp $ln[1];
+		    $PORT = $ln[1];
+		} elsif ($ln[0] =~ /ident/i) {
+		    chomp $ln[1];
+		    $IDENT = $ln[1];
+		} elsif ($ln[0] =~ /altnick/i)  {
+		    chomp $ln[1];
+		    $ALTNICK = $ln[1];
+		} elsif ($ln[0] =~ /nick/i) {
+		    chomp $ln[1];
+		    $NICK = $ln[1];
+		}
+	}
+	close CFGFILE;
 
 	# Just about all of the settings are "strings", except
 	# for the "port".  Let's make sure that that setting
 	# is numerical, and if not, set it to the most common
 	# port, 6667:
-	if($cfg_port=~/\D/) { $cfg_port=6667; }
-}
-
-# GetSetting()
-# Arguments: setting to retrieve,configuration file
-# Returns: The setting value, or "" if it doesn't exist
-# Description: Use this sub to load values
-#              from a configuration file.
-#              Settings are stored in this format:
-#              <setting>=<value>
-sub GetSetting
-{
-  my ($setting,$config_file)=@_;
-  open(CFGFILE,"<$config_file")
-    or die "Can't open configuration file ($config_file)";
-  my @slist=<CFGFILE>;
-  foreach my $selem (@slist)
-  {
-    if (index($selem,"#")==0) { next; }
-    my @ln=split("=",$selem);
-    if ($ln[0] =~ /$setting/i)
-    {
-        chomp $ln[1];
-        return $ln[1];
-    }
-  }
-  close CFGFILE;
+	if($PORT=~/\D/) { $PORT=6667; }
 }
 
 # -----------------------------
@@ -199,7 +195,7 @@ sub on_msg {
 sub on_nick_taken {
     my ($self) = shift;
 
-    $self->nick($cfg_altnick);
+    $self->nick($ALTNICK);
 }
 
 # ---------------------------
